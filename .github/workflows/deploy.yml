@@ -100,53 +100,53 @@ jobs:
               ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest
               ${{ secrets.DOCKERHUB_USERNAME }}/myapp:${{ github.sha }}
 
-deploy:
-  name: Deploy Azure VM
-  runs-on: ubuntu-latest
+  deploy:
+    name: Deploy Azure VM
+    runs-on: ubuntu-latest
 
-  needs:
-    - build-push
+    needs:
+      - build-push
 
-  steps:
-    - name: Installer sshpass
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y sshpass
+    steps:
+      - name: Installer sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
 
-    - name: Deployer sur la VM Azure
-      run: |
-        sshpass -p "${{ secrets.AZURE_VM_PASSWORD }}" \
-        ssh -o StrictHostKeyChecking=no \
-        ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }} << EOF
+      - name: Deployer sur la VM Azure
+        run: |
+          sshpass -p "${{ secrets.AZURE_VM_PASSWORD }}" \
+          ssh -o StrictHostKeyChecking=no \
+          ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }} << EOF
 
-          cd ~/DLeroux
+            cd ~/DLeroux
 
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login \
-            -u "${{ secrets.DOCKERHUB_USERNAME }}" \
-            --password-stdin
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login \
+              -u "${{ secrets.DOCKERHUB_USERNAME }}" \
+              --password-stdin
 
-          docker pull \
-            ${{ secrets.DOCKERHUB_USERNAME }}/myapp:${{ github.sha }}
+            docker pull \
+              ${{ secrets.DOCKERHUB_USERNAME }}/myapp:${{ github.sha }}
 
-          docker rm -f myapp || true
+            docker rm -f myapp || true
 
-          docker run -d \
-            --name myapp \
-            --restart unless-stopped \
-            -p 8083:8080 \
-            ${{ secrets.DOCKERHUB_USERNAME }}/myapp:${{ github.sha }}
+            docker run -d \
+              --name myapp \
+              --restart unless-stopped \
+              -p 8083:8080 \
+              ${{ secrets.DOCKERHUB_USERNAME }}/myapp:${{ github.sha }}
 
-          for i in {1..20}; do
-            if curl -f http://localhost:8083/health; then
-              echo "Application OK"
-              exit 0
-            fi
+            for i in {1..20}; do
+              if curl -f http://localhost:8083/health; then
+                echo "Application OK"
+                exit 0
+              fi
 
-            sleep 2
-          done
+              sleep 2
+            done
 
-          echo "Application inaccessible"
-          docker logs myapp
-          exit 1
+            echo "Application inaccessible"
+            docker logs myapp
+            exit 1
 
-        EOF
+          EOF
