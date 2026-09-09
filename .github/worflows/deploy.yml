@@ -1,0 +1,71 @@
+name: deploy app
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: get project
+        uses: actions/checkout@v6
+
+      - name: get python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: unit test
+        run: |
+          python -m unittest tests/unit_test.py
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: get project
+        uses: actions/checkout@v6
+
+      - name: get python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: get requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: start app and e2e
+        run: |
+          python app/app.py > app.log 2>&1 &
+          APP_PID=$!
+
+          trap 'kill $APP_PID || true' EXIT
+
+          for i in {1..20}; do
+            if curl -f http://localhost:8080/health; then
+              echo "started"
+              break
+            fi
+
+            if [ "$i" -eq 20 ]; then
+              echo "error : not started"
+              cat app.log
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          python -m unittest tests/e2e_test.py
