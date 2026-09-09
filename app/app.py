@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 
 app = Flask(__name__)
 
@@ -8,7 +8,7 @@ def hello_world():
 
 @app.rout("/health")
 def health():
-    return "<p>Working</p>"
+    return jsonify({"status": "ok"}), 200
 
 if __name__== "__main__":
 
